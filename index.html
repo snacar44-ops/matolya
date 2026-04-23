@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:#0a1628;color:#fff;min-height:100vh;}
+.screen{display:none;flex-direction:column;min-height:100vh;}
+.screen.active{display:flex;}
+.hdr{background:linear-gradient(135deg,#1a7a55,#0a4a30);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.hdr h1{font-size:20px;font-weight:800;letter-spacing:2px;}
+.hdr p{font-size:11px;color:#9FE1CB;margin-top:1px;}
+.pts{background:rgba(0,0,0,.25);border-radius:20px;padding:5px 13px;font-size:13px;color:#FAC775;}
+#map-frame{flex:1;position:relative;background:linear-gradient(160deg,#1a4a2a,#0a2818);display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:400px;}
+#map-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;display:none;}
+#upload-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;z-index:5;}
+#map-overlay-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,22,40,.9) 0%,rgba(10,22,40,.1) 45%,transparent 70%);pointer-events:none;z-index:3;}
+.flag-wrap{position:absolute;bottom:110px;right:24px;z-index:4;}
+#intro-bottom{position:absolute;bottom:0;left:0;right:0;padding:20px 24px;text-align:center;z-index:5;}
+.red-strip{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;}
+.red-strip-line{flex:1;height:1.5px;background:linear-gradient(to right,transparent,#E30A17);}
+.red-strip-line.r{background:linear-gradient(to left,transparent,#E30A17);}
+.red-strip-badge{background:#E30A17;border-radius:20px;padding:3px 14px;font-size:10px;font-weight:700;letter-spacing:1px;}
+#intro-bottom h2{font-size:22px;font-weight:800;margin-bottom:6px;text-shadow:0 2px 8px rgba(0,0,0,.5);}
+#intro-bottom p{font-size:13px;color:#9FE1CB;margin-bottom:18px;line-height:1.5;}
+#start-btn{background:#1D9E75;color:#fff;border:none;border-radius:12px;padding:13px 44px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 18px rgba(29,158,117,.4);}
+#start-btn:hover{background:#15b882;}
+#cities-bar{background:#0e1e2e;padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #1a3a5a;}
+#cities-bar input{flex:1;min-width:120px;background:#162a3e;border:1px solid #2a4a6a;border-radius:7px;padding:7px 12px;font-size:12px;color:#fff;outline:none;}
+#cities-bar input:focus{border-color:#1D9E75;}
+#cities-bar select{font-size:12px;padding:6px 8px;border:none;border-radius:6px;background:#162a3e;color:#fff;cursor:pointer;}
+#cities-grid{flex:1;overflow-y:auto;padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+.cc{background:#0e1e2e;border:1px solid #1a3a5a;border-radius:11px;padding:12px;cursor:pointer;transition:all .14s;position:relative;}
+.cc:hover{border-color:#1D9E75;transform:translateY(-2px);box-shadow:0 4px 14px rgba(29,158,117,.18);}
+.cc.active-city{border-color:#FAC775;}
+.cc.locked{opacity:.45;cursor:not-allowed;}
+.cc.locked:hover{transform:none;box-shadow:none;border-color:#1a3a5a;}
+.cc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.cc-icon{font-size:24px;}
+.cc-badge-status{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;}
+.s-open{background:#0a3a22;color:#1D9E75;}
+.s-active{background:#3a2a00;color:#FAC775;}
+.s-locked{background:#1a2a3a;color:#4a7a9a;}
+.cc-name{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
+.cc-sub{font-size:10px;color:#4a9ab0;margin-bottom:7px;}
+.cc-tags{display:flex;flex-wrap:wrap;gap:3px;}
+.cc-tag{font-size:9px;padding:2px 6px;border-radius:4px;background:#162a3e;color:#6ab8d4;}
+.cc-tag.sinif{background:#0a2a1a;color:#5DCAA5;}
+.ribbon{position:absolute;top:0;right:0;background:#FAC775;color:#5a3a00;font-size:8px;font-weight:700;padding:2px 7px;border-radius:0 11px 0 7px;}
+#q-header{background:#0e1e2e;padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1a3a5a;}
+#q-back{background:rgba(255,255,255,.08);border:none;color:#aaa;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:12px;}
+#q-back:hover{color:#fff;}
+#q-city-name{font-size:14px;font-weight:700;flex:1;}
+#q-progress-text{font-size:11px;color:#4a9ab0;}
+#q-progress-bar-wrap{background:#1a3a5a;height:4px;flex-shrink:0;}
+#q-progress-bar{height:4px;background:#1D9E75;transition:width .3s;}
+#q-body{flex:1;overflow-y:auto;padding:14px 16px;}
+#q-img{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:12px;display:block;}
+#q-context{background:#0e1e2e;border:1px solid #1a3a5a;border-radius:8px;padding:11px;font-size:12px;color:#8ab4cc;line-height:1.6;margin-bottom:12px;}
+#q-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.q-meta-tag{font-size:10px;padding:2px 8px;border-radius:10px;}
+.qt-sinif{background:#0a2a1a;color:#5DCAA5;}
+.qt-konu{background:#0a1e3a;color:#6ab4ff;}
+.qt-bloom{background:#2a1a3a;color:#c4a0ff;}
+.qt-mab{background:#1a2a0a;color:#a0d060;}
+.qt-deger{background:#2a1a0a;color:#c8e870;border:1px solid #3a5a10;}
+#q-text{font-size:14px;color:#fff;line-height:1.6;margin-bottom:14px;font-weight:500;}
+.q-opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.q-opt{background:#0e1e2e;border:1.5px solid #1a3a5a;border-radius:8px;padding:11px 14px;font-size:13px;color:#ccc;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:10px;text-align:left;}
+.q-opt:hover{border-color:#1D9E75;color:#fff;}
+.q-opt.correct{border-color:#1D9E75;background:#0a2a1a;color:#5DCAA5;}
+.q-opt.wrong{border-color:#E30A17;background:#2a0a0a;color:#f87070;}
+.q-opt.disabled{pointer-events:none;}
+.opt-letter{width:24px;height:24px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+#q-feedback{display:none;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center;}
+#q-feedback.correct{background:linear-gradient(135deg,#0a3a1a,#0a2a12);border:1px solid #1D9E75;}
+#q-feedback.wrong{background:linear-gradient(135deg,#2a0a0a,#1a0808);border:1px solid #E30A17;}
+#q-feedback .fb-icon{font-size:28px;margin-bottom:4px;}
+#q-feedback .fb-msg{font-size:14px;font-weight:700;margin-bottom:4px;}
+#q-feedback .fb-exp{font-size:12px;color:#8ab4cc;line-height:1.5;}
+#q-footer{padding:12px 16px;border-top:1px solid #1a3a5a;display:flex;gap:8px;}
+#q-next{flex:1;background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;display:none;}
+#q-next:hover{background:#15b882;}
+#q-hint{flex:1;background:#162a3e;color:#6ab4ff;border:1px solid #2a4a6a;border-radius:8px;padding:11px;font-size:12px;cursor:pointer;}
+#result-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.result-icon{font-size:56px;margin-bottom:12px;}
+#result-title{font-size:22px;font-weight:800;margin-bottom:6px;}
+#result-sub{font-size:14px;color:#9FE1CB;margin-bottom:20px;line-height:1.5;}
+.result-stats{display:flex;gap:14px;margin-bottom:22px;justify-content:center;}
+.rs{background:#0e1e2e;border:1px solid #1a3a5a;border-radius:10px;padding:12px 20px;text-align:center;}
+.rs-val{font-size:22px;font-weight:800;color:#FAC775;}
+.rs-lbl{font-size:11px;color:#4a9ab0;margin-top:2px;}
+.result-value-box{background:linear-gradient(135deg,#0a2a1a,#0a1e12);border:1px solid #1D9E75;border-radius:10px;padding:14px;margin-bottom:18px;max-width:340px;}
+.result-value-box .rv-label{font-size:11px;color:#5DCAA5;margin-bottom:4px;}
+.result-value-box .rv-val{font-size:13px;color:#9FE1CB;line-height:1.5;}
+#result-btn{background:#1D9E75;color:#fff;border:none;border-radius:10px;padding:12px 36px;font-size:14px;font-weight:700;cursor:pointer;}
+#result-btn2{background:#162a3e;color:#6ab4ff;border:1px solid #2a4a6a;border-radius:10px;padding:12px 24px;font-size:13px;cursor:pointer;margin-left:10px;}
+#modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:flex-end;justify-content:center;}
+#modal-bg.show{display:flex;}
+#modal{background:#0e1e2e;border:1px solid #1a4a6a;border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:22px;animation:slideup .22s ease;position:relative;}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#m-close{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.08);border:none;color:#aaa;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;}
+.m-icon{font-size:34px;margin-bottom:8px;}
+#m-title{font-size:17px;font-weight:700;margin-bottom:4px;}
+#m-sub{font-size:12px;color:#6a9ab0;margin-bottom:12px;line-height:1.5;}
+.m-info-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.m-info{background:#162a3e;border-radius:6px;padding:5px 10px;font-size:11px;color:#8ab4cc;}
+.m-info span{color:#FAC775;font-weight:700;}
+#m-btn{width:100%;border:none;border-radius:9px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;color:#fff;background:#1D9E75;}
+#m-btn:hover{background:#15b882;}
+#m-btn.devam{background:#BA7517;}
+#img-manager{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;flex-direction:column;align-items:center;justify-content:flex-end;}
+</style>
+</head>
+<body>
+
+<!-- EKRAN 1: GİRİŞ -->
+<div id="s-intro" class="screen active">
+  <div class="hdr">
+    <div><h1>MATOLYA</h1><p>Kültürel miras temelli matematik öğrenme platformu</p></div>
+    <div class="pts" id="pts-intro">★ 0 puan</div>
+  </div>
+  <div id="map-frame">
+    <img id="map-bg-img" src="https://i.imgur.com/gV5eIFh.png" alt="Türkiye Kültürel Miras Haritası" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;display:block;"/>
+    <div class="flag-wrap">
+      <svg width="58" height="40" viewBox="0 0 58 40">
+        <rect width="58" height="40" rx="3" fill="#E30A17"/>
+        <circle cx="20" cy="20" r="10" fill="#fff"/>
+        <circle cx="24" cy="20" r="7.5" fill="#E30A17"/>
+        <polygon points="32,20 34,14.5 36,16.5 41,15.5 38.5,20 41,24.5 36,23.5 34,25.5" fill="#fff"/>
+      </svg>
+    </div>
+    <div id="map-overlay-grad"></div>
+    <div id="intro-bottom">
+      <div class="red-strip">
+        <div class="red-strip-line"></div>
+        <div class="red-strip-badge">KÖKLERİMİZLE GELECEĞE</div>
+        <div class="red-strip-line r"></div>
+      </div>
+      <h2>Türkiye'yi Keşfet, Matematik Öğren!</h2>
+      <p>Her şehrin kültürel mirası seni bekliyor.<br>Görevleri tamamla, rozetler kazan, haritayı fethret!</p>
+      <button id="start-btn" onclick="goScreen('s-cities')">Şehirleri Keşfet →</button>
+    </div>
+  </div>
+</div>
+
+<!-- EKRAN 2: ŞEHİR LİSTESİ -->
+<div id="s-cities" class="screen">
+  <div class="hdr">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button onclick="goScreen('s-intro')" style="background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:12px;">← Geri</button>
+      <h1 style="font-size:17px;">Şehir Seç</h1>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button onclick="openImageManager()" style="background:rgba(255,255,255,.12);border:none;color:#9FE1CB;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:12px;">🖼️ Görseller</button>
+      <div class="pts" id="pts-cities">★ 0 puan</div>
+    </div>
+  </div>
+  <div id="cities-bar">
+    <input type="text" id="search-inp" placeholder="🔍 Şehir ara..." oninput="filterCities()"/>
+    <select id="fil-sinif" onchange="filterCities()">
+      <option value="">Tüm sınıflar</option>
+      <option value="5">5. Sınıf</option>
+      <option value="6">6. Sınıf</option>
+      <option value="7">7. Sınıf</option>
+      <option value="8">8. Sınıf</option>
+    </select>
+    <select id="fil-konu" onchange="filterCities()">
+      <option value="">Tüm konular</option>
+      <option value="Yüzde">Yüzde / Kesir</option>
+      <option value="Cebir">Cebir</option>
+      <option value="Geometri">Geometri</option>
+      <option value="Veri">Veri</option>
+      <option value="Orantı">Orantı</option>
+      <option value="Olasılık">Olasılık</option>
+    </select>
+  </div>
+  <div id="cities-grid"></div>
+</div>
+
+<!-- EKRAN 3: SORU -->
+<div id="s-question" class="screen">
+  <div id="q-header">
+    <button id="q-back" onclick="goScreen('s-cities')">← Şehirler</button>
+    <div id="q-city-name">—</div>
+    <div id="q-progress-text">1/4</div>
+  </div>
+  <div id="q-progress-bar-wrap"><div id="q-progress-bar" style="width:25%"></div></div>
+  <div id="q-body">
+    <img id="q-img" src="" alt=""/>
+    <div id="q-context"></div>
+    <div id="q-meta"></div>
+    <div id="q-text"></div>
+    <div class="q-opts" id="q-opts"></div>
+    <div id="q-feedback">
+      <div class="fb-icon" id="fb-icon"></div>
+      <div class="fb-msg" id="fb-msg"></div>
+      <div class="fb-exp" id="fb-exp"></div>
+    </div>
+  </div>
+  <div id="q-footer">
+    <button id="q-hint" onclick="showHint()">💡 İpucu</button>
+    <button id="q-next" onclick="nextQ()">Sonraki Soru →</button>
+  </div>
+</div>
+
+<!-- EKRAN 4: SONUÇ -->
+<div id="s-result" class="screen">
+  <div class="hdr"><div><h1>MATOLYA</h1></div><div class="pts" id="pts-result">★ 0 puan</div></div>
+  <div id="result-body">
+    <div class="result-icon" id="res-icon"></div>
+    <div id="result-title"></div>
+    <div id="result-sub"></div>
+    <div class="result-stats">
+      <div class="rs"><div class="rs-val" id="res-dogru"></div><div class="rs-lbl">Doğru</div></div>
+      <div class="rs"><div class="rs-val" id="res-puan"></div><div class="rs-lbl">Puan</div></div>
+      <div class="rs"><div class="rs-val" id="res-sure"></div><div class="rs-lbl">Süre</div></div>
+    </div>
+    <div class="result-value-box">
+      <div class="rv-label">✨ Kazanılan Değer</div>
+      <div class="rv-val" id="res-deger"></div>
+    </div>
+    <div>
+      <button id="result-btn" onclick="goScreen('s-cities')">Başka Şehir Keşfet</button>
+      <button id="result-btn2" onclick="replayCity()">Tekrar Oyna</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-bg">
+  <div id="modal">
+    <button id="m-close" onclick="closeModal()">✕</button>
+    <div class="m-icon" id="m-icon-el"></div>
+    <div id="m-title"></div>
+    <div id="m-sub"></div>
+    <div class="m-info-row" id="m-info-row"></div>
+    <button id="m-btn" onclick="startCity()">Göreve Başla →</button>
+  </div>
+</div>
+
+<!-- GÖRSEL YÖNETİM PANELİ -->
+<div id="img-manager">
+  <div style="background:#0e1e2e;border:1px solid #1a4a6a;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="padding:16px 20px;border-bottom:1px solid #1a3a5a;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:15px;font-weight:700;">🖼️ Şehir Görselleri</div>
+      <div style="font-size:12px;color:#6a9ab0;flex:1;margin:0 12px;">Her şehir için bir görsel yükleyin — sorularda görünür</div>
+      <button onclick="closeImageManager()" style="background:rgba(255,255,255,.08);border:none;color:#aaa;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;">✕</button>
+    </div>
+    <div id="img-manager-grid" style="overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;"></div>
+  </div>
+</div>
+
+<script>
+// ── VERİ ──────────────────────────────────────────────
+const CITIES_DATA = [
+  {id:'istanbul',name:'İstanbul',icon:'🌉',status:'open',unsur:'15 Temmuz Şehitler Köprüsü',tur:'Mimari / Tarih',deger:'Vatansever · Bilge',siniflar:['5','6','8'],konular:['Yüzde','Geometri'],aciklama:'Boğaz\'ı iki yakaya bağlayan bu köprü, yüzde, Pisagor ve matematiksel muhakeme sorularıyla seni bekliyor.',soru_sayisi:6,sorular:[
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü, İstanbul Boğazı\'nı Ortaköy ile Beylerbeyi arasında birleştiren köprüdür. 30 Ekim 1973\'te Cumhuriyet\'in 50. yıl dönümünde hizmete açılmış; 15 Temmuz 2016\'da milletin demokrasiye sahip çıktığı tarihi geceye atfen yeni adını almıştır. Toplam uzunluğu 1.560 m, kule yüksekliği 165 m, denizden yüksekliği 64 m\'dir.',soru:'Köprüyü günde ortalama 200.000 araç kullanmaktadır. Araçların %35\'i kamyon, geri kalanı otomobildir. Bir günde köprüden geçen kamyon sayısı kaçtır?',secenekler:['35.000','70.000','130.000','200.000'],dogru:1,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'200.000 × 0,35 = 70.000 kamyon.',dogru_mesaj:'Hesaplama ustası! İstanbul\'un nabzını tutuyorsun 🌉'},
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü, İstanbul Boğazı\'nı Ortaköy ile Beylerbeyi arasında birleştiren köprüdür. 30 Ekim 1973\'te Cumhuriyet\'in 50. yıl dönümünde hizmete açılmış; 15 Temmuz 2016\'da milletin demokrasiye sahip çıktığı tarihi geceye atfen yeni adını almıştır. Toplam uzunluğu 1.560 m, kule yüksekliği 165 m, denizden yüksekliği 64 m\'dir.',soru:'Köprü hizmete girdiğinde günlük kapasite 130.000 araçtı. Bugün günlük ortalama 200.000 araç geçmektedir. Günlük geçiş sayısı başlangıç kapasitesine göre yaklaşık yüzde kaç artmıştır?',secenekler:['%35,0','%46,7','%53,8','%65,4'],dogru:2,sinif:'6',konu:'Yüzde',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'(200K−130K)/130K × 100 = %53,8',dogru_mesaj:'Yüzde değişimini kavradın! Boğaz\'ın matematiğini çözdün 📊'},
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü, İstanbul Boğazı\'nı Ortaköy ile Beylerbeyi arasında birleştiren köprüdür. 30 Ekim 1973\'te Cumhuriyet\'in 50. yıl dönümünde hizmete açılmış; 15 Temmuz 2016\'da milletin demokrasiye sahip çıktığı tarihi geceye atfen yeni adını almıştır. Köprü açılışından bu yana yaklaşık 50 yılda toplam 2 milyar 581 milyon araç geçişine hizmet vermiştir.',soru:'Buna göre yıllık ortalama araç geçişi kaçtır?',secenekler:['25.810.000','41.620.000','51.620.000','56.200.000'],dogru:2,sinif:'5',konu:'Yüzde',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'2.581.000.000 ÷ 50 = 51.620.000',dogru_mesaj:'Milyarlık sayılarla başa çıkıyorsun! 🧮'},
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü, İstanbul Boğazı\'nı Ortaköy ile Beylerbeyi arasında birleştiren köprüdür. Köprünün ana kuleleri 165 m yüksekliğindedir. Kule dibinden zemin bağlantı noktasına yatay mesafe 280 m\'dir. Bu iki mesafe birbirine dik açı oluşturmaktadır.',soru:'Kule tepesinden zemin bağlantı noktasına uzanan kabloyu temsil eden doğrunun uzunluğu kaç metredir?',secenekler:['280 m','325 m','445 m','233 m'],dogru:1,sinif:'8',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB1+MAB2',aciklama_not:'√(280²+165²) = √105625 = 325 m',dogru_mesaj:'Pisagor ustası! Köprünün kablo sırrını çözdün 📐'},
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü\'nde her ana kablosunun uzunluğu 325 m\'dir. Kule yüksekliği 165 m, kule dibinden zemin bağlantı noktasına yatay mesafe h metredir. Bu iki mesafe birbirine dik açı oluşturmaktadır.',soru:'h kaç metredir?',secenekler:['160 m','245 m','280 m','365 m'],dogru:2,sinif:'8',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'h² = 325²−165² = 78400 → h = 280 m',dogru_mesaj:'Pisagor\'u tersine de uygulayabiliyorsun! Bravo 🏆'},
+    {baglamMetni:'15 Temmuz Şehitler Köprüsü\'nde gerçek bir asma köprüde ana kablo düz bir doğru parçası değil, eğri bir yay çizer.',soru:'Gerçek kablo uzunluğu, Pisagor bağıntısıyla hesaplanan değerle karşılaştırıldığında hangisi doğrudur?',secenekler:['Hesaplanan değere eşittir; kablo gergin tutulduğu için düz kalır','Hesaplanan değerden azdır; kablo en kısa yolu izler','Hesaplanan değerden fazladır; yay uzunluğu doğru parçasından büyüktür','Hesaplanan değerden azdır; köprü ağırlığı kablo uzunluğunu kısaltır'],dogru:2,sinif:'8',konu:'Geometri',bloom:'5 — Değerlendirme',mab:'MAB1',aciklama_not:'Yay uzunluğu her zaman doğru parçasından büyüktür.',dogru_mesaj:'Matematiksel modellemenin sınırlarını sorguluyorsun — mühendis ruhu! ⚙️'},
+  ]},
+  {id:'malatya',name:'Malatya',icon:'🍑',status:'open',unsur:'Kayısı Üretimi',tur:'Gastronomi / Zanaat',deger:'Üretken · Vatansever',siniflar:['7'],konular:['Cebir'],aciklama:'Dünyanın kayısı başkenti Malatya\'da Hasan Bey\'in bahçesiyle cebir öğren!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Malatya, dünya kayısı üretiminin yaklaşık %65\'ini karşılayan şehrimizdir. Her yıl hasatta toplanan taze kayısılar güneşte kurutularak kuru kayısıya dönüştürülür. 4 kg taze kayısıdan yaklaşık 1 kg kuru kayısı elde edilir. Üretici Hasan Bey, kayısılarını 12 TL/kg\'dan satın alıp işleyerek 80 TL/kg\'dan satmaktadır. Sabit işletme giderleri (kurutma alanı, ambalaj) 90 TL\'dir.',soru:'Hasan Bey x kg taze kayısı işlerse toplam maliyeti ne olur?',secenekler:['12x + 90','12x','80x + 90','92x + 90'],dogru:0,sinif:'7',konu:'Cebir',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'Değişken maliyet: 12x. Sabit gider: 90. Toplam: 12x + 90.',dogru_mesaj:'Maliyet hesabını çözdün! Malatya\'nın ticaretini anlıyorsun 🍑'},
+    {baglamMetni:'Malatya, dünya kayısı üretiminin yaklaşık %65\'ini karşılayan şehrimizdir. 4 kg taze kayısıdan yaklaşık 1 kg kuru kayısı elde edilir. Üretici Hasan Bey, kayısılarını 12 TL/kg\'dan satın alıp işleyerek 80 TL/kg\'dan satmaktadır. Sabit işletme giderleri (kurutma alanı, ambalaj) 90 TL\'dir.',soru:'x kg taze kayısı işlenirse kâr ifadesi hangisidir?',secenekler:['68x − 90','8x − 90','8x','−8x + 90'],dogru:1,sinif:'7',konu:'Cebir',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'x kg taze → x/4 kg kuru → gelir 20x. Maliyet 12x+90. Kâr = 8x−90.',dogru_mesaj:'Kâr formülünü buldun! Ticaret dehası 📈'},
+    {baglamMetni:'Malatya, dünya kayısı üretiminin yaklaşık %65\'ini karşılayan şehrimizdir. 4 kg taze kayısıdan yaklaşık 1 kg kuru kayısı elde edilir. Üretici Hasan Bey için Kâr = 8x − 90 (x: taze kayısı kg).',soru:'Hasan Bey kâr edebilmek için en az kaç kg taze kayısı işlemelidir?',secenekler:['8 kg','11 kg','12 kg','5 kg'],dogru:2,sinif:'7',konu:'Cebir',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'8x−90 > 0 → x > 11,25 → en az 12 kg.',dogru_mesaj:'Eşitsizlik çözdün! Hasan Bey seninle kâra geçti 💰'},
+    {baglamMetni:'Malatya, dünya kayısı üretiminin yaklaşık %65\'ini karşılayan şehrimizdir. 4 kg taze kayısıdan yaklaşık 1 kg kuru kayısı elde edilir. Üretici Hasan Bey için Kâr = 8x − 90.',soru:'Hasan Bey 200 kg taze kayısı işlerse ne kadar kâr eder?',secenekler:['1.510 TL','1.600 TL','3.290 TL','3.910 TL'],dogru:0,sinif:'7',konu:'Cebir',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'8×200 − 90 = 1.510 TL.',dogru_mesaj:'1.510 TL! Ticaretten anlıyorsun — Malatya\'nın gururu sensin 🏅'},
+  ]},
+  {id:'hatay',name:'Hatay',icon:'🍮',status:'open',unsur:'Künefe tarifi',tur:'Gastronomi',deger:'Estetik · Vatansever',siniflar:['6','7'],konular:['Orantı','Yüzde'],aciklama:'Tescilli Antakya Künefesi\'nin tarifiyle oran, yüzde ve kesir problemleri çöz!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Hatay\'ın simgesi künefe, 2007 yılında coğrafi işaret tescili almıştır. Tescilli Antakya Künefesi tam olarak dört malzemeden oluşur: 1.000 g tel kadayıf, 750 g künefe peyniri, 300 g tereyağı ve 1 litre şerbet. Kadayıf ile peynir arasındaki oran bu tescilli tarifin özüdür.',soru:'1.000 g kadayıf için 750 g peynir kullanılır. Aynı orana göre 1.500 g kadayıf için kaç gram peynir gerekir?',secenekler:['750 g','1.000 g','1.125 g','1.500 g'],dogru:2,sinif:'7',konu:'Orantı',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'1000:750 = 1500:x → x = 1.125 g.',dogru_mesaj:'Oranı buldun! Antakya\'nın lezzetini matematikle taçlandırdın 🍮'},
+    {baglamMetni:'Hatay\'ın simgesi künefe, 2007 yılında coğrafi işaret tescili almıştır. Tescilli Antakya Künefesi: 1.000 g kadayıf, 750 g peynir, 300 g tereyağı. Toplam katı malzeme: 2.050 g.',soru:'Tereyağının toplam katı malzeme içindeki payı yaklaşık yüzde kaçtır?',secenekler:['%14,6','%20,0','%25,0','%30,0'],dogru:0,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB1+MAB2',aciklama_not:'300 ÷ 2050 × 100 ≈ %14,6.',dogru_mesaj:'Yüzde hesabında usta oldun! Künefenin sırrını çözdün 🔍'},
+    {baglamMetni:'Hatay\'ın simgesi künefe, 2007 yılında coğrafi işaret tescili almıştır. Tescilli tarif 6-8 kişiliktir. Zeynep bu tarifi yarıya indirerek 4 kişilik yapacaktır.',soru:'Buna göre kaç gram kadayıf kullanmalıdır?',secenekler:['250 g','500 g','750 g','1.000 g'],dogru:1,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'1000 ÷ 2 = 500 g.',dogru_mesaj:'Zeynep\'in mutfağını kurtardın! Şef matematik hocası 👨‍🍳'},
+    {baglamMetni:'Hatay\'ın simgesi künefe, 2007 yılında coğrafi işaret tescili almıştır. Tescilli Antakya Künefesi: 1.000 g kadayıf, 750 g peynir, 300 g tereyağı. 600 g kadayıf kullanılacaksa 180 g tereyağı gerekmektedir. Elif\'in evinde 150 g tereyağı vardır.',soru:'Elif kaç gram daha tereyağı alması gerekir?',secenekler:['10 g','30 g','150 g','180 g'],dogru:1,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'180 − 150 = 30 g.',dogru_mesaj:'30 gram fark! Elif artık künefesini yapabilir 🎉'},
+  ]},
+  {id:'sanliurfa',name:'Şanlıurfa',icon:'🗿',status:'open',unsur:'Göbeklitepe',tur:'Tarih',deger:'Vatansever · Sorgulayıcı',siniflar:['5'],konular:['Yüzde'],aciklama:'12.000 yıllık gizemli tapınağın matematiksel sırlarını keşfet!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Göbeklitepe, Şanlıurfa\'ya 18 km uzaklıkta yer alan ve yaklaşık 12.000 yıl önce inşa edildiği belirlenen dünyanın en eski tapınak alanıdır. 300 metre çapındaki alanda 20 farklı daire biçiminde dizilmiş 200\'den fazla T şeklinde sütun bulunmaktadır. Her sütun yaklaşık 6 metre yüksekliğinde ve 10 ton ağırlığındadır. Kazılar 1994 yılında başlamış olup tamamlanması için yaklaşık 150 yıl daha gerektiği öngörülmektedir.',soru:'Alandaki 200 sütunun toplam ağırlığı kaç tondur?',secenekler:['200 ton','210 ton','2.000 ton','20.000 ton'],dogru:2,sinif:'5',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'200 × 10 = 2.000 ton.',dogru_mesaj:'2.000 ton! Göbeklitepe\'nin ağırlığını taşıyabiliyorsun 🏛️'},
+    {baglamMetni:'Göbeklitepe, Şanlıurfa\'ya 18 km uzaklıkta yer alan ve yaklaşık 12.000 yıl önce inşa edildiği belirlenen dünyanın en eski tapınak alanıdır. 300 metre çapındaki alanda 20 farklı daire biçiminde dizilmiş 200\'den fazla T şeklinde sütun bulunmaktadır. Her sütun yaklaşık 6 metre yüksekliğinde ve 10 ton ağırlığındadır. Kazılar 1994 yılında başlamış olup tamamlanması için yaklaşık 150 yıl daha gerektiği öngörülmektedir.',soru:'2026 yılı itibarıyla kazılar kaç yıl daha sürecektir?',secenekler:['32 yıl','118 yıl','124 yıl','150 yıl'],dogru:1,sinif:'5',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'2026−1994=32 yıl geçti. 150−32=118 yıl kaldı.',dogru_mesaj:'Zaman hesabını çözdün! Gelecek nesillere mesaj bıraktın 📜'},
+    {baglamMetni:'Göbeklitepe, Şanlıurfa\'ya 18 km uzaklıkta yer alan ve yaklaşık 12.000 yıl önce inşa edildiği belirlenen dünyanın en eski tapınak alanıdır. 300 metre çapındaki alanda 20 farklı daire biçiminde dizilmiş 200\'den fazla T şeklinde sütun bulunmaktadır. Her sütun yaklaşık 6 metre yüksekliğinde ve 10 ton ağırlığındadır. Kazılar 1994 yılında başlamış olup tamamlanması için yaklaşık 150 yıl daha gerektiği öngörülmektedir.',soru:'Tüm sütunları üst üste koyarsak toplam yükseklik kaç metre olur?',secenekler:['120 m','206 m','1.200 m','12.000 m'],dogru:2,sinif:'5',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'200 × 6 = 1.200 m.',dogru_mesaj:'1.200 metre! Bir matematik kulesi diktın 🗼'},
+    {baglamMetni:'Göbeklitepe, Şanlıurfa\'ya 18 km uzaklıkta yer alan ve yaklaşık 12.000 yıl önce inşa edildiği belirlenen dünyanın en eski tapınak alanıdır. 300 metre çapındaki alanda 20 farklı daire biçiminde dizilmiş 200\'den fazla T şeklinde sütun bulunmaktadır. Her sütun yaklaşık 6 metre yüksekliğinde ve 10 ton ağırlığındadır. Kazılar 1994 yılında başlamış olup tamamlanması için yaklaşık 150 yıl daha gerektiği öngörülmektedir.',soru:'Her dairenin ortasında 2 büyük sütun yer almaktadır. Toplam 200 sütunun büyük olanlar dışında kalanı küçük sütundur. Kaç tane küçük sütun vardır?',secenekler:['40','140','160','180'],dogru:2,sinif:'5',konu:'Yüzde',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'20×2=40 büyük. 200−40=160 küçük.',dogru_mesaj:'160 küçük sütun! Göbeklitepe\'nin mimarını geride bıraktın 🧠'},
+  ]},
+  {id:'ankara',name:'Ankara',icon:'🏛️',status:'open',unsur:'Anıtkabir & Huzurevi',tur:'Tarih / Sosyal Yaşam',deger:'Vatansever · Merhametli',siniflar:['5','6'],konular:['Geometri','Veri'],aciklama:'Anıtkabir\'in geometrisi ve bir bağış kampanyasının verileriyle Ankara\'yı keşfet!',soru_sayisi:7,sorular:[
+    {baglamMetni:'Ankara\'da bir grup öğrenci, şehirdeki huzurevine bağış toplamak için kampanya başlatmıştır. Hedef 10.000 TL\'dir. Kampanyanın ilk 5 günündeki bağış miktarları: Pazartesi: 1.200 TL, Salı: 1.800 TL, Çarşamba: 2.400 TL, Perşembe: 1.800 TL, Cuma: 2.000 TL.',soru:'Kampanyanın ilk 5 günündeki toplam bağış miktarı kaç TL\'dir?',secenekler:['9.000 TL','9.200 TL','9.400 TL','10.000 TL'],dogru:1,sinif:'6',konu:'Veri',bloom:'2 — Anlama',mab:'MAB4',aciklama_not:'1200+1800+2400+1800+2000 = 9.200 TL.',dogru_mesaj:'Toplama şampiyonu! 9.200 TL topladın, hedefe yaklaştın 💚'},
+    {baglamMetni:'Ankara\'da bir grup öğrenci, şehirdeki huzurevine bağış toplamak için kampanya başlatmıştır. Hedef 10.000 TL\'dir. Kampanyanın ilk 5 günündeki bağış miktarları: Pazartesi: 1.200 TL, Salı: 1.800 TL, Çarşamba: 2.400 TL, Perşembe: 1.800 TL, Cuma: 2.000 TL.',soru:'Bu 5 günlük bağışların günlük ortalaması kaç TL\'dir?',secenekler:['1.640 TL','1.800 TL','1.840 TL','2.400 TL'],dogru:2,sinif:'6',konu:'Veri',bloom:'3 — Uygulama',mab:'MAB4',aciklama_not:'9200 ÷ 5 = 1.840 TL.',dogru_mesaj:'Ortalama hesabında ustasın! Merhametli ve bilgeli bir öğrenci 🌟'},
+    {baglamMetni:'Ankara\'da bir grup öğrenci, şehirdeki huzurevine bağış toplamak için kampanya başlatmıştır. Bağış miktarları küçükten büyüğe sıralandığında: 1.200, 1.800, 1.800, 2.000, 2.400 TL.',soru:'Ortanca değer kaç TL\'dir?',secenekler:['1.640 TL','1.800 TL','1.840 TL','2.400 TL'],dogru:1,sinif:'6',konu:'Veri',bloom:'3 — Uygulama',mab:'MAB4',aciklama_not:'Sıralı 5 veri → ortanca = 3. eleman = 1.800 TL.',dogru_mesaj:'Ortancayı buldun! Verilerin tam ortasındaki hakikati tutuyorsun 📊'},
+    {baglamMetni:'Ankara\'da bir grup öğrenci, şehirdeki huzurevine bağış toplamak için kampanya başlatmıştır. Hedef 10.000 TL. Kampanya 5. günün sonunda 9.200 TL toplamıştır. Hedefe ulaşmak için 800 TL daha gerekmektedir. Günlük ortalama bağış miktarı 1.840 TL\'dir.',soru:'Aşağıdaki yorumlardan hangisi doğrudur?',secenekler:['Hedefe asla ulaşılamaz, çünkü kalan gün sayısı bilinmiyor','Bir günlük ortalama bağış, kalan miktarı karşılamaz','Bir günlük ortalama bağış, kalan miktarı karşılamaya yeter','Toplanan bağış hedefe eşittir, kampanya başarıyla tamamlanmıştır'],dogru:2,sinif:'6',konu:'Veri',bloom:'5 — Değerlendirme',mab:'MAB4',aciklama_not:'1.840 > 800 → evet, karşılar.',dogru_mesaj:'Veriye dayalı karar veriyorsun! Gerçek bir analist 🎯'},
+    {baglamMetni:'Anıtkabir, Ankara\'da 750.000 m² alan üzerinde yükselen Ulu Önder Atatürk\'ün anıt mezarıdır. 1944-1953 yılları arasında inşa edilmiştir. Yapının mimarisi matematiksel sembolizmle doludur: Şeref Holü\'nün alanı 1.920 m² olup TBMM\'nin kuruluş yılı 1920\'yi temsil eder. Aslanlı Yol 262 m uzunluğundadır ve yolun iki yanında 24 aslan heykeli yer alır. Tören Alanı\'nın zemini 373 adet halı-kilim deseniyle bezenmiştir.',soru:'Anıtkabir Şeref Holü\'nün çevre uzunluğu 184 metredir. Holün kısa kenarı 32 metre olduğuna göre uzun kenarı kaç metredir?',secenekler:['30 m','46 m','60 m','92 m'],dogru:2,sinif:'5',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'2×(32+b) = 184 → b = 60 m.',dogru_mesaj:'Anıtkabir\'in ölçümünü çözdün! Cumhuriyetin geometricisisin 🏛️'},
+    {baglamMetni:'Anıtkabir, Ankara\'da 750.000 m² alan üzerinde yükselen Ulu Önder Atatürk\'ün anıt mezarıdır. 1944-1953 yılları arasında inşa edilmiştir. Yapının mimarisi matematiksel sembolizmle doludur: Şeref Holü\'nün alanı 1.920 m² olup TBMM\'nin kuruluş yılı 1920\'yi temsil eder. Aslanlı Yol 262 m uzunluğundadır ve yolun iki yanında 24 aslan heykeli yer alır. Tören Alanı\'nın zemini 373 adet halı-kilim deseniyle bezenmiştir.',soru:'Anıtkabir Tören Alanı\'nın zemini 373 adet halı-kilim deseniyle bezenmiştir. Her desen paralelkenar biçimindedir: tabanı 2 metre, yüksekliği 1,5 metredir. Tüm desenlerin kapladığı toplam alan kaç m²\'dir?',secenekler:['186,5 m²','559,5 m²','1.119 m²','1.492 m²'],dogru:2,sinif:'6',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2+MAB3',aciklama_not:'Paralelkenar alanı: 2×1,5=3 m². 373×3=1.119 m².',dogru_mesaj:'Paralelkenar alanında ustasın! Anıtkabir\'in desenleri sana secde ediyor 🌟'},
+    {baglamMetni:'Anıtkabir, Ankara\'da 750.000 m² alan üzerinde yükselen Ulu Önder Atatürk\'ün anıt mezarıdır. 1944-1953 yılları arasında inşa edilmiştir. Yapının mimarisi matematiksel sembolizmle doludur: Şeref Holü\'nün alanı 1.920 m² olup TBMM\'nin kuruluş yılı 1920\'yi temsil eder. Aslanlı Yol 262 m uzunluğundadır ve yolun iki yanında 24 aslan heykeli yer alır. Tören Alanı\'nın zemini 373 adet halı-kilim deseniyle bezenmiştir.',soru:'Aslanlı Yol 262 m uzunluğundadır. Her iki yanında 5 m genişliğinde çim şerit bulunmaktadır. 1 m² çimin aylık sulama maliyeti 3 TL\'dir. Bu çim alanının aylık toplam sulama maliyeti kaç TL\'dir?',secenekler:['786 TL','1.310 TL','2.620 TL','7.860 TL'],dogru:3,sinif:'6',konu:'Geometri',bloom:'4 — Analiz',mab:'MAB2',aciklama_not:'2×262×5=2.620 m². 2.620×3=7.860 TL.',dogru_mesaj:'7.860 TL! Her adımında matematiksel bir zafer kazandın 🏆'},
+  ]},
+  {id:'edirne',name:'Edirne',icon:'🕌',status:'open',unsur:'Selimiye Camii',tur:'Mimari / Tarih',deger:'Estetik · Vatansever',siniflar:['6','7'],konular:['Geometri'],aciklama:'Mimar Sinan\'ın ustalık eseri Selimiye\'nin geometrik sırlarını çöz!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Mimar Sinan\'ın "ustalık eserim" dediği Selimiye Camii, 1568-1574 yılları arasında Edirne\'de inşa edilmiş ve 2011\'de UNESCO Dünya Mirası Listesi\'ne girmiştir. Caminin tek kubbesinin çapı 31,30 metre, yerden yüksekliği 43,28 metredir. Dört minaresinin her biri 70,89 metre yüksekliğinde, 3,80 metre çapındadır. Caminin iç alanı 1.620 m², haremiyle birlikte 2.475 m²\'dir. (π = 3,14 alınız)',soru:'Selimiye Camii\'nin kubbesinin çapı 31,30 metredir. Buna göre kubbenin çevre uzunluğu yaklaşık kaç metredir?',secenekler:['31,30 m','62,60 m','98,28 m','154,20 m'],dogru:2,sinif:'6',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'Ç = π × d = 3,14 × 31,30 = 98,28 m.',dogru_mesaj:'Mimar Sinan seninle gurur duyardı! Kubbenin sırrını çözdün 🕌'},
+    {baglamMetni:'Mimar Sinan\'ın "ustalık eserim" dediği Selimiye Camii, 1568-1574 yılları arasında Edirne\'de inşa edilmiş ve 2011\'de UNESCO Dünya Mirası Listesi\'ne girmiştir. Caminin tek kubbesinin çapı 31,30 metre, yerden yüksekliği 43,28 metredir. Dört minaresinin her biri 70,89 metre yüksekliğinde, 3,80 metre çapındadır. (π = 3,14 alınız)',soru:'Selimiye Camii\'nin her minaresinin çapı 3,80 metredir. Bir minarenin çevre uzunluğu yaklaşık kaç metredir?',secenekler:['3,80 m','7,60 m','11,93 m','23,86 m'],dogru:2,sinif:'6',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'Ç = π × d = 3,14 × 3,80 = 11,93 m.',dogru_mesaj:'Minarenin çemberini ölçtün! Edirne\'nin mirasını koruyorsun 📐'},
+    {baglamMetni:'Mimar Sinan\'ın "ustalık eserim" dediği Selimiye Camii, 1568-1574 yılları arasında Edirne\'de inşa edilmiş ve 2011\'de UNESCO Dünya Mirası Listesi\'ne girmiştir. Kubbenin yarıçapı yaklaşık 15,65 metredir. (π = 3,14 alınız)',soru:'Selimiye Camii kubbesinin yarıçapı yaklaşık 15,65 metredir. Kubbenin taban alanı yaklaşık kaç m²\'dir?',secenekler:['49,14 m²','307,74 m²','769,05 m²','3.076,20 m²'],dogru:2,sinif:'7',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'A = π × r² = 3,14 × 15,65² ≈ 769 m².',dogru_mesaj:'Daire alanında ustasın! Osmanlı mimarisi seni bekliyor 🌙'},
+    {baglamMetni:'Mimar Sinan\'ın "ustalık eserim" dediği Selimiye Camii, 1568-1574 yılları arasında Edirne\'de inşa edilmiş ve 2011\'de UNESCO Dünya Mirası Listesi\'ne girmiştir. Caminin iç alanı 1.620 m²\'dir. Kubbenin taban alanı yaklaşık 769 m²\'dir.',soru:'Kubbenin kapsamadığı iç alan kaç m²\'dir ve bu alanın iç alana oranı aşağıdakilerden hangisine en yakındır?',secenekler:['851 m² — iç alanın yaklaşık yarısı','851 m² — iç alanın yaklaşık üçte biri','2.389 m² — iç alanın yaklaşık üçte ikisi','769 m² — iç alana eşit'],dogru:0,sinif:'7',konu:'Geometri',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'1620−769=851 m². 851/1620≈0,53 → yaklaşık yarısı.',dogru_mesaj:'Selimiye\'nin her santimetresini çözdün! UNESCO seni tebrik eder 🏅'},
+  ]},
+  {id:'konya',name:'Konya',icon:'🌀',status:'active',unsur:'Mevlana Müzesi',tur:'Tarih / Kültür / Veri',deger:'Bilge · Vatansever',siniflar:['6','7','8'],konular:['Veri','Geometri','Olasılık'],aciklama:'Hz. Mevlana\'nın şehrinde veri analizi, üslü ifadeler ve olasılık keşfet!',soru_sayisi:8,sorular:[
+    {baglamMetni:'Mevlana Müzesi, Konya\'da bulunan ve Hz. Mevlana Celaleddin-i Rumi\'nin türbesini barındıran müzedir. Türkiye\'nin en çok ziyaret edilen müzeleri arasında yer alan Mevlana Müzesi\'ne 2024 yılının ilk altı ayında ay ay şu kadar ziyaretçi gelmiştir: Ocak: 180.000 | Şubat: 195.000 | Mart: 280.000 | Nisan: 320.000 | Mayıs: 195.000 | Haziran: 260.000',soru:'Mevlana Müzesi\'nin 2024 yılı Ocak-Haziran dönemindeki aylık ortalama ziyaretçi sayısı kaçtır?',secenekler:['195.000','227.500','238.333','280.000'],dogru:2,sinif:'6',konu:'Veri',bloom:'3 — Uygulama',mab:'MAB4',aciklama_not:'Toplam: 1.430.000 ÷ 6 = 238.333.',dogru_mesaj:'Ortalama buldun! Mevlana\'nın "Her gece aynı yerde yatma, ilerlemeye bak" sözünü yaşıyorsun 🌀'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da bulunan ve Hz. Mevlana Celaleddin-i Rumi\'nin türbesini barındıran müzedir. Türkiye\'nin en çok ziyaret edilen müzeleri arasında yer alan Mevlana Müzesi\'ne 2024 yılının ilk altı ayında ay ay şu kadar ziyaretçi gelmiştir: Ocak: 180.000 | Şubat: 195.000 | Mart: 280.000 | Nisan: 320.000 | Mayıs: 195.000 | Haziran: 260.000',soru:'Mevlana Müzesi\'nin 2024 yılı Ocak-Haziran dönemindeki aylık ziyaretçi sayılarının ortancası kaçtır?',secenekler:['195.000','227.500','238.333','280.000'],dogru:1,sinif:'6',konu:'Veri',bloom:'3 — Uygulama',mab:'MAB4',aciklama_not:'Sıralı: 180K,195K,195K,260K,280K,320K → ortanca=(195K+260K)/2=227.500.',dogru_mesaj:'Ortancayı buldun! Verilerin tam ortasındaki hakikati yakaladın 💫'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da bulunan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Türkiye\'nin en çok ziyaret edilen kültürel mekânlarından biridir. Aşağıda müzenin 2020-2024 yılları arasındaki yıllık ziyaretçi sayıları (bin kişi) verilmiştir: 2020: 1.100 bin | 2021: 2.000 bin | 2022: 2.600 bin | 2023: 2.900 bin | 2024: 3.050 bin',soru:'Mevlana Müzesi\'nin 2020-2024 yılları arasındaki yıllık ziyaretçi sayılarının açıklığı kaç bindir?',secenekler:['950 bin','1.950 bin','2.330 bin','3.050 bin'],dogru:1,sinif:'7',konu:'Veri',bloom:'3 — Uygulama',mab:'MAB4',aciklama_not:'Açıklık = 3.050 − 1.100 = 1.950 bin.',dogru_mesaj:'Açıklık hesabında ustasın! İstatistiğin kapısını araladın 📈'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da bulunan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Türkiye\'nin en çok ziyaret edilen kültürel mekânlarından biridir. Aşağıda müzenin 2020-2024 yılları arasındaki yıllık ziyaretçi sayıları (bin kişi) verilmiştir: 2020: 1.100 bin | 2021: 2.000 bin | 2022: 2.600 bin | 2023: 2.900 bin | 2024: 3.050 bin',soru:'Mevlana Müzesi\'nin 2020-2024 yılları arasındaki ziyaretçi sayılarına ilişkin aşağıdaki yorumlardan hangisi doğrudur?',secenekler:['Ziyaretçi sayısı her yıl bir önceki yıla göre aynı miktarda artmıştır','2020 yılındaki düşük ziyaretçi sayısı, beş yılın ortalamasını arttırmıştır','En yüksek yıllık artış 2020\'den 2021\'e geçişte yaşanmıştır','2024 yılı ziyaretçi sayısı beş yıllık ortalamanın altındadır'],dogru:2,sinif:'7',konu:'Veri',bloom:'4 — Analiz',mab:'MAB1+MAB4',aciklama_not:'2021−2020=900K en büyük artış. Ortalama≈2.330K<3.050K → D yanlış.',dogru_mesaj:'İstatistiksel muhakeme! Mevlana\'nın bilgeliğine ulaşıyorsun 🧠'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da 1926 yılından beri ziyarete açık olan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Müze alanı bahçesiyle birlikte 6.500 m²\'dir. Sema ayininin gerçekleştirildiği Semahane, 17,50 m × 17,50 m ölçülerinde kare planlıdır. Müze, 2024 yılında kuruluşunun 750. yılını kutlamıştır. 2024 yılında müzeyi 3.048.055 ziyaretçi ziyaret etmiştir. Şeb-i Arus törenine 2024\'te 1.000 bilet satılmış; biletlerin 200\'ü öğrenci, 800\'ü yetişkin biletiydi.',soru:'Yeni sergi alanının büyüklüğü 2³ × 3² m² olarak ifade edilmektedir. Sergi alanının büyüklüğü kaç m²\'dir?',secenekler:['24 m²','48 m²','72 m²','144 m²'],dogru:2,sinif:'8',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB1+MAB2',aciklama_not:'2³ × 3² = 8 × 9 = 72 m².',dogru_mesaj:'Üslü ifadelerde ustasın! 750. yıl kutlamalarına hazırsın 🎊'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da 1926 yılından beri ziyarete açık olan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Müze alanı bahçesiyle birlikte 6.500 m²\'dir. Sema ayininin gerçekleştirildiği Semahane, 17,50 m × 17,50 m ölçülerinde kare planlıdır. Müze, 2024 yılında kuruluşunun 750. yılını kutlamıştır. 2024 yılında müzeyi 3.048.055 ziyaretçi ziyaret etmiştir. Şeb-i Arus törenine 2024\'te 1.000 bilet satılmış; biletlerin 200\'ü öğrenci, 800\'ü yetişkin biletiydi.',soru:'Müze avlusunun kare şeklindeki bir bölümünün alanı 1.764 m²\'dir. Bu bölümün bir kenarının uzunluğu kaç metredir?',secenekler:['21 m','42 m','63 m','882 m'],dogru:1,sinif:'8',konu:'Geometri',bloom:'3 — Uygulama',mab:'MAB1+MAB2',aciklama_not:'√1764 = 42 m.',dogru_mesaj:'Karekök buldun! Sema dönerken sen hesap yapıyorsun 🌟'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da 1926 yılından beri ziyarete açık olan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Müze alanı bahçesiyle birlikte 6.500 m²\'dir. Sema ayininin gerçekleştirildiği Semahane, 17,50 m × 17,50 m ölçülerinde kare planlıdır. Müze, 2024 yılında kuruluşunun 750. yılını kutlamıştır. 2024 yılında müzeyi 3.048.055 ziyaretçi ziyaret etmiştir. Şeb-i Arus törenine 2024\'te 1.000 bilet satılmış; biletlerin 200\'ü öğrenci, 800\'ü yetişkin biletiydi.',soru:'Bir haber sitesi "Mevlana Müzesi ziyaretçileri 2020\'den bu yana 3 kat arttı" başlığını kullandı. 2020 yılında 1.100.000, 2024 yılında ise 3.048.000 ziyaretçi geldiğine göre aşağıdaki yorumlardan hangisi istatistiksel açıdan doğrudur?',secenekler:['Doğru; 3.048.000 ÷ 1.100.000 ≈ 3\'tür','Yanlış; ziyaretçi sayısı yaklaşık 2,8 kat artmıştır','Doğru; artış miktarı 1.948.000 olduğu için 3 kattır','Yanlış; ziyaretçi sayısı azalmıştır'],dogru:1,sinif:'8',konu:'Veri',bloom:'5 — Değerlendirme',mab:'MAB1+MAB4',aciklama_not:'3.048K÷1.100K=2,77≈2,8 kat. 3 kat için 3.300K gerekirdi.',dogru_mesaj:'Haberi sorguladın! Eleştirel düşünce şampiyonu 🛡️'},
+    {baglamMetni:'Mevlana Müzesi, Konya\'da 1926 yılından beri ziyarete açık olan ve Hz. Mevlana\'nın türbesini barındıran müzedir. Müze alanı bahçesiyle birlikte 6.500 m²\'dir. Sema ayininin gerçekleştirildiği Semahane, 17,50 m × 17,50 m ölçülerinde kare planlıdır. Müze, 2024 yılında kuruluşunun 750. yılını kutlamıştır. 2024 yılında müzeyi 3.048.055 ziyaretçi ziyaret etmiştir. Şeb-i Arus törenine 2024\'te 1.000 bilet satılmış; biletlerin 200\'ü öğrenci, 800\'ü yetişkin biletiydi.',soru:'Şeb-i Arus törenine satılan 1.000 biletin 200\'ü öğrenci, 800\'ü yetişkin biletidir. Rastgele seçilen bir izleyicinin öğrenci olma olasılığını hesaplamak için hangi yaklaşım ve değer doğrudur?',secenekler:['Öznel olasılık; öğrenciler töreni çok seviyor, olasılık yüksek','Teorik olasılık; 200/1.000 = 1/5','Deneysel olasılık; geçen yıl yarısı öğrenciydi, olasılık 1/2','Teorik olasılık; 800/1.000 = 4/5'],dogru:1,sinif:'8',konu:'Olasılık',bloom:'4 — Analiz',mab:'MAB1+MAB4',aciklama_not:'Teorik olasılık: 200/1000 = 1/5.',dogru_mesaj:'Olasılık türlerini ayırt ediyorsun! Matematiğin sırrını öğreniyorsun ✨'},
+  ]},
+  {id:'bursa',name:'Bursa',icon:'🧵',status:'open',unsur:'İpekböceği / KOZABİRLİK',tur:'Zanaat / Tarım',deger:'Üretken · Vatansever',siniflar:['6'],konular:['Yüzde'],aciklama:'Türkiye\'nin ipek merkezi Bursa\'da OBEB, OKEK ve yüzde problemleri!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Bursa, Türkiye\'nin ipekböcekçiliğinin kalbi sayılır. 1940\'tan beri faaliyet gösteren KOZABİRLİK (Bursa Koza Tarım Satış Kooperatifleri Birliği), üreticilerden koza satın alarak işler. Bir kozadan yaklaşık 1.000-1.200 metre ham ipek elde edilir. 2025 yılında Türkiye\'deki yaş koza üretimi bir önceki yıla göre yaklaşık %38,4 artarak 85 tondan 118 tona ulaşmıştır.',soru:'KOZABİRLİK, iki farklı üreticiden koza satın almıştır: Üretici A\'dan 120 kutu, Üretici B\'den 180 kutu. Kooperatif bu kutuları her grupta eşit sayıda kutu olacak şekilde en büyük gruplar halinde paketlemek istemektedir. Bir pakette kaç kutu olmalıdır?',secenekler:['10','30','60','360'],dogru:2,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'OBEB(120,180) = 60.',dogru_mesaj:'OBEB\'i buldun! Kozabirlik\'in en verimli çalışanısın 🧵'},
+    {baglamMetni:'Bursa, Türkiye\'nin ipekböcekçiliğinin kalbi sayılır. 1940\'tan beri faaliyet gösteren KOZABİRLİK (Bursa Koza Tarım Satış Kooperatifleri Birliği), üreticilerden koza satın alarak işler. Bir kozadan yaklaşık 1.000-1.200 metre ham ipek elde edilir. 2025 yılında Türkiye\'deki yaş koza üretimi bir önceki yıla göre yaklaşık %38,4 artarak 85 tondan 118 tona ulaşmıştır.',soru:'KOZABİRLİK iki farklı ipekböceği tohumu sipariş etmektedir. A cinsi tohumlar 120\'şer kutu, B cinsi tohumlar 180\'er kutu halinde paketlenmektedir. Her iki cinsten eşit sayıda kutu almak için en az kaç kutu sipariş edilmelidir?',secenekler:['60','180','360','720'],dogru:2,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'OKEK(120,180) = 360.',dogru_mesaj:'OKEK hesabında ustasın! İpek yolu sana açık 🌟'},
+    {baglamMetni:'Bursa, Türkiye\'nin ipekböcekçiliğinin kalbi sayılır. 1940\'tan beri faaliyet gösteren KOZABİRLİK (Bursa Koza Tarım Satış Kooperatifleri Birliği), üreticilerden koza satın alarak işler. 2025 yılında Türkiye\'deki yaş koza üretimi bir önceki yıla göre yaklaşık %38,4 artarak 85 tondan 118 tona ulaşmıştır.',soru:'Türkiye\'deki yaş koza üretimi 2024 yılında 85 ton iken 2025 yılında 118 tona ulaşmıştır. Üretimdeki artış yaklaşık yüzde kaçtır?',secenekler:['%28,0','%38,4','%50,0','%138,8'],dogru:1,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'33 ÷ 85 × 100 ≈ %38,4.',dogru_mesaj:'%38,4! Türkiye\'nin ipek üretimi seninle büyüyor 📈'},
+    {baglamMetni:'Bursa, Türkiye\'nin ipekböcekçiliğinin kalbi sayılır. 1940\'tan beri faaliyet gösteren KOZABİRLİK (Bursa Koza Tarım Satış Kooperatifleri Birliği), üreticilerden koza satın alarak işler. 2025 yılında Türkiye\'deki yaş koza üretimi bir önceki yıla göre yaklaşık %38,4 artarak 85 tondan 118 tona ulaşmıştır.',soru:'2025 yılında Türkiye\'de 118 ton yaş koza üretilmiştir. KOZABİRLİK, 2026 yılında üretimin %30 daha artmasını hedeflemektedir. Bu hedefe ulaşılırsa 2026 yılında kaç ton yaş koza üretilmiş olur?',secenekler:['35,4 ton','148,0 ton','153,4 ton','88,0 ton'],dogru:2,sinif:'6',konu:'Yüzde',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'118 × 1,30 = 153,4 ton.',dogru_mesaj:'153,4 ton! Bursa\'nın ipek geleceğini hesapladın 🏭'},
+  ]},
+  {id:'trabzon',name:'Trabzon',icon:'🐟',status:'open',unsur:'Hamsi avı / Kooperatif',tur:'Doğa / Zanaat',deger:'Merhametli · Adalet',siniflar:['7'],konular:['Orantı'],aciklama:'Karadeniz\'in sevgilisi hamsiyle doğru ve ters orantı problemleri!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Trabzon, Türkiye\'nin en önemli hamsi avlama merkezlerinden biridir. 2025-2026 av sezonunda Trabzon\'da 96 balıkçı gemisiyle toplam 21.306 ton hamsi avlanmıştır. Hamsi Karadeniz\'in simgesi olup Trabzon mutfağının vazgeçilmez lezzetidir. Balıkçılar kooperatif aracılığıyla avlarını pazarlamakta ve gelirleri orantılı biçimde paylaşmaktadır.',soru:'Bir balıkçı kooperatifinde 4 gemi ortak çalışarak 3 günde 12 ton hamsi avlamıştır. Aynı koşullarda 6 gemi çalışırsa 3 günde kaç ton hamsi avlanır?',secenekler:['12 ton','16 ton','18 ton','24 ton'],dogru:2,sinif:'7',konu:'Orantı',bloom:'3 — Uygulama',mab:'MAB1+MAB2',aciklama_not:'6/4 × 12 = 18 ton. Doğru orantı.',dogru_mesaj:'18 ton! Karadeniz\'in matematiğini çözdün 🌊'},
+    {baglamMetni:'Trabzon, Türkiye\'nin en önemli hamsi avlama merkezlerinden biridir. 2025-2026 av sezonunda Trabzon\'da 96 balıkçı gemisiyle toplam 21.306 ton hamsi avlanmıştır. Hamsi Karadeniz\'in simgesi olup Trabzon mutfağının vazgeçilmez lezzetidir. Balıkçılar kooperatif aracılığıyla avlarını pazarlamakta ve gelirleri orantılı biçimde paylaşmaktadır.',soru:'Trabzon\'da 3 balıkçı 1 günde 900 kg hamsi avlamıştır. Aynı koşullarda 6 balıkçı 1 günde kaç kg hamsi avlar? Bu durumun hangi tür orantı olduğunu da belirtiniz.',secenekler:['450 kg — ters orantı','900 kg — oran değişmez','1.350 kg — doğru orantı','1.800 kg — doğru orantı'],dogru:3,sinif:'7',konu:'Orantı',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'6/3 × 900 = 1.800 kg. Balıkçı arttı, av arttı → doğru orantı.',dogru_mesaj:'Doğru orantıyı kavradın! Trabzon\'un balıkçıları seni takımına alır 🎣'},
+    {baglamMetni:'Trabzon, Türkiye\'nin en önemli hamsi avlama merkezlerinden biridir. 2025-2026 av sezonunda Trabzon\'da 96 balıkçı gemisiyle toplam 21.306 ton hamsi avlanmıştır. Balıkçılar kooperatif aracılığıyla avlarını pazarlamakta ve gelirleri orantılı biçimde paylaşmaktadır.',soru:'Bir kooperatifte 3 büyük ve 2 küçük gemi ortaklık kurmuştur. Sezon sonunda toplam 15.000 kg hamsi avlanmıştır. Kooperatif anlaşmasına göre büyük gemiler toplam avın %75\'ini, küçük gemiler ise %25\'ini eşit paylaşır. Buna göre her büyük gemi kaç kg hamsi alır?',secenekler:['1.875 kg','2.500 kg','3.000 kg','3.750 kg'],dogru:3,sinif:'7',konu:'Orantı',bloom:'4 — Analiz',mab:'MAB2',aciklama_not:'15.000 × 0,75 ÷ 3 = 3.750 kg.',dogru_mesaj:'Adil paylaşım sağladın! Kooperatifin en güvenilir üyesisin ⚓'},
+    {baglamMetni:'Trabzon, Türkiye\'nin en önemli hamsi avlama merkezlerinden biridir. 2025-2026 av sezonunda Trabzon\'da 96 balıkçı gemisiyle toplam 21.306 ton hamsi avlanmıştır. Balıkçılar kooperatif aracılığıyla avlarını pazarlamakta ve gelirleri orantılı biçimde paylaşmaktadır.',soru:'Bir balıkçı gemisi 3 günde 450 kg hamsi avlamıştır. 1 kg hamsinin satış fiyatı 25 TL, geminin günlük yakıt masrafı ise 180 TL\'dir. Bu geminin 3 günlük net kârı kaç TL\'dir?',secenekler:['11.250 TL','11.070 TL','10.710 TL','10.500 TL'],dogru:2,sinif:'7',konu:'Orantı',bloom:'4 — Analiz',mab:'MAB2',aciklama_not:'450×25 − (3×180) = 11.250 − 540 = 10.710 TL.',dogru_mesaj:'10.710 TL kâr! Trabzon\'un en başarılı balıkçısısın 🏆'},
+  ]},
+  {id:'denizli',name:'Denizli',icon:'🤍',status:'open',unsur:'Pamukkale Travertenleri',tur:'Doğa / Tarih',deger:'Estetik · Sorgulayıcı',siniflar:['7'],konular:['Cebir'],aciklama:'UNESCO mirası Pamukkale\'de cebirsel ifadeler ve denklemler keşfet!',soru_sayisi:4,sorular:[
+    {baglamMetni:'Pamukkale travertenleri, Denizli\'de yer alan ve UNESCO Dünya Mirası Listesi\'nde bulunan doğa harikasıdır. Termal su kaynaklarından gelen kalsiyum karbonatlı su, yüzeyde buharlaşarak beyaz kireçtaşı katmanları oluşturur. Travertenlerin toplam yüksekliği 160 metre, uzunluğu 2.700 metredir. Her yıl yaklaşık 2 cm büyümeye devam etmektedir. Pamukkale\'ye 2024 yılı giriş ücreti 700 TL (öğrencilere 350 TL) olarak uygulanmaktadır.',soru:'Pamukkale travertenleri şu an 16.000 cm yüksekliğindedir ve her yıl 2 cm büyümektedir. n yıl sonraki yükseklik aşağıdaki cebirsel ifadelerden hangisiyle gösterilir?',secenekler:['16.000 + n','16.000 + 2n','16.002 × n','2n'],dogru:1,sinif:'7',konu:'Cebir',bloom:'3 — Uygulama',mab:'MAB2+MAB3',aciklama_not:'Her yıl 2 cm artıyor → 16.000 + 2n.',dogru_mesaj:'Cebirsel modelleme! Pamukkale senin formülünle büyümeye devam ediyor 🤍'},
+    {baglamMetni:'Pamukkale travertenleri, Denizli\'de yer alan ve UNESCO Dünya Mirası Listesi\'nde bulunan doğa harikasıdır. Termal su kaynaklarından gelen kalsiyum karbonatlı su, yüzeyde buharlaşarak beyaz kireçtaşı katmanları oluşturur. Travertenlerin toplam yüksekliği 160 metre, uzunluğu 2.700 metredir. Her yıl yaklaşık 2 cm büyümeye devam etmektedir.',soru:'Pamukkale\'deki iki traverten havuzunun derinliği ölçülmüştür. Birinci havuzun derinliği (3x + 5) cm, ikinci havuzun derinliği (2x − 1) cm\'dir. İki havuzun toplam derinliği kaç cm\'dir?',secenekler:['5x + 6','5x + 4','x + 4','6x + 4'],dogru:1,sinif:'7',konu:'Cebir',bloom:'3 — Uygulama',mab:'MAB2',aciklama_not:'3x+5 + 2x−1 = 5x+4.',dogru_mesaj:'Cebirsel toplama ustası! Pamukkale\'nin havuzları sana sır verdi 💧'},
+    {baglamMetni:'Pamukkale travertenleri, Denizli\'de yer alan ve UNESCO Dünya Mirası Listesi\'nde bulunan doğa harikasıdır. Pamukkale\'ye 2024 yılı giriş ücreti 700 TL (öğrencilere 350 TL) olarak uygulanmaktadır.',soru:'Bir aile Pamukkale\'ye gitmektedir. Yetişkin bileti 700 TL, çocuk bileti ise 350 TL\'dir. Ailedeki yetişkin sayısı çocuk sayısından 1 fazladır. Aile toplam 2.800 TL ödüyorsa ailede kaç çocuk vardır?',secenekler:['1','2','3','4'],dogru:1,sinif:'7',konu:'Cebir',bloom:'4 — Analiz',mab:'MAB2',aciklama_not:'700(x+1)+350x = 2.800 → 1.050x = 2.100 → x = 2.',dogru_mesaj:'Denklemi kurdun, çözdün! 2 çocuk — aile Pamukkale\'de eğlenebilir 🎉'},
+    {baglamMetni:'Pamukkale travertenleri, Denizli\'de yer alan ve UNESCO Dünya Mirası Listesi\'nde bulunan doğa harikasıdır. Pamukkale\'ye 2024 yılı giriş ücreti 700 TL (öğrencilere 350 TL) olarak uygulanmaktadır.',soru:'Bir öğretmen sınıfıyla Pamukkale\'ye gitmektedir. Öğretmen ücretsiz girerken öğrenciler 350 TL ödemektedir. Grubun toplam bütçesi en fazla 3.500 TL\'dir. Bu gruba en fazla kaç öğrenci katılabilir?',secenekler:['En az 10 öğrenci','En fazla 9 öğrenci','En fazla 10 öğrenci','Tam 10 öğrenci'],dogru:2,sinif:'7',konu:'Cebir',bloom:'4 — Analiz',mab:'MAB1+MAB2',aciklama_not:'350x ≤ 3.500 → x ≤ 10.',dogru_mesaj:'Eşitsizliği çözdün! Sınıfın tamamı Pamukkale\'ye gidebilir 🚌'},
+  ]},
+];
+
+// ── DURUM ──────────────────────────────────────────────
+let totalPts=0, currentCity=null, currentQIdx=0, answered=false;
+let correctCount=0, startTime=0, hintUsed=false;
+const cityImages={};
+
+// ── EKRANLAR ──────────────────────────────────────────
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('[id^="pts"]').forEach(el=>el.textContent='★ '+totalPts+' puan');
+}
+
+// ── HARİTA YÜKLEME ────────────────────────────────────
+function loadMapImage(e){
+  const file=e.target.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const img=document.getElementById('map-bg-img');
+    img.src=ev.target.result; img.style.display='block';
+    document.getElementById('upload-hint').style.display='none';
+    try{localStorage.setItem('matolya_map',ev.target.result);}catch(err){}
+  };
+  r.readAsDataURL(file);
+}
+
+// ── ŞEHİR GÖRSELLERİ ─────────────────────────────────
+function loadCityImages(){
+  CITIES_DATA.forEach(c=>{
+    try{const s=localStorage.getItem('matolya_img_'+c.id); if(s)cityImages[c.id]=s;}catch(e){}
+  });
+}
+function saveCityImage(id,url){
+  cityImages[id]=url;
+  try{localStorage.setItem('matolya_img_'+id,url);}catch(e){}
+}
+function openImageManager(){
+  document.getElementById('img-manager').style.display='flex';
+  const g=document.getElementById('img-manager-grid'); g.innerHTML='';
+  CITIES_DATA.forEach(c=>{
+    const has=!!cityImages[c.id];
+    const d=document.createElement('div');
+    d.style.cssText='background:#0e1e2e;border:1px solid '+(has?'#1D9E75':'#1a3a5a')+';border-radius:10px;padding:10px;text-align:center;';
+    d.innerHTML=`<div style="font-size:26px;margin-bottom:4px;">${c.icon}</div>
+      <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:6px;">${c.name}</div>
+      ${has?`<img src="${cityImages[c.id]}" style="width:100%;height:55px;object-fit:cover;border-radius:5px;margin-bottom:6px;"/>`
+          :`<div style="width:100%;height:55px;background:#162a3e;border-radius:5px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#4a7a9a;">Görsel yok</div>`}
+      <label style="background:${has?'#0a3a22':'#1D9E75'};color:#fff;border-radius:5px;padding:4px 8px;font-size:10px;cursor:pointer;display:block;">
+        ${has?'Değiştir':'Yükle'}
+        <input type="file" accept="image/*" style="display:none;" onchange="handleCityImg(event,'${c.id}')"/>
+      </label>`;
+    g.appendChild(d);
+  });
+}
+function closeImageManager(){document.getElementById('img-manager').style.display='none';}
+function handleCityImg(e,id){
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{saveCityImage(id,ev.target.result); openImageManager();};
+  r.readAsDataURL(f);
+}
+
+// ── ŞEHİR LİSTESİ ────────────────────────────────────
+function buildCities(list){
+  const g=document.getElementById('cities-grid'); g.innerHTML='';
+  list.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='cc '+(c.status==='active'?'active-city':c.status==='locked'?'locked':'');
+    el.innerHTML=`${c.status==='active'?'<div class="ribbon">DEVAM</div>':''}
+      <div class="cc-top"><span class="cc-icon">${c.icon}</span>
+      <span class="cc-badge-status s-${c.status}">${c.status==='open'?'Açık':c.status==='active'?'Devam':'Kilitli'}</span></div>
+      <div class="cc-name">${c.name}</div>
+      <div class="cc-sub">${c.unsur}</div>
+      <div class="cc-tags">${c.siniflar.map(s=>`<span class="cc-tag sinif">${s}. Sınıf</span>`).join('')}${c.konular.map(k=>`<span class="cc-tag">${k}</span>`).join('')}</div>`;
+    if(c.status!=='locked') el.onclick=()=>openModal(c);
+    g.appendChild(el);
+  });
+}
+function filterCities(){
+  const q=document.getElementById('search-inp').value.toLowerCase();
+  const s=document.getElementById('fil-sinif').value;
+  const k=document.getElementById('fil-konu').value;
+  buildCities(CITIES_DATA.filter(c=>(!q||c.name.toLowerCase().includes(q))&&(!s||c.siniflar.includes(s))&&(!k||c.konular.includes(k))));
+}
+
+// ── MODAL ─────────────────────────────────────────────
+let pendingCity=null;
+function openModal(city){
+  pendingCity=city;
+  document.getElementById('m-icon-el').textContent=city.icon;
+  document.getElementById('m-title').textContent=city.name+' — '+city.unsur;
+  document.getElementById('m-sub').textContent=city.aciklama;
+  document.getElementById('m-info-row').innerHTML=
+    `<div class="m-info">Sınıf: <span>${city.siniflar.join(', ')}</span></div>
+     <div class="m-info">Konu: <span>${city.konular.join(', ')}</span></div>
+     <div class="m-info">Soru: <span>${city.soru_sayisi} soru</span></div>
+     <div class="m-info">Değer: <span>${city.deger}</span></div>`;
+  const btn=document.getElementById('m-btn');
+  btn.textContent=city.status==='active'?'Devam Et →':'Göreve Başla →';
+  btn.className=city.status==='active'?'devam':'';
+  document.getElementById('modal-bg').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('show');}
+function startCity(){
+  closeModal();
+  if(!pendingCity)return;
+  currentCity=pendingCity; currentQIdx=0; correctCount=0; startTime=Date.now();
+  loadQuestion(); goScreen('s-question');
+}
+
+// ── SORU ──────────────────────────────────────────────
+function loadQuestion(){
+  answered=false; hintUsed=false;
+  const q=currentCity.sorular[currentQIdx];
+  const total=currentCity.sorular.length;
+  document.getElementById('q-city-name').textContent=currentCity.icon+' '+currentCity.name;
+  document.getElementById('q-progress-text').textContent=(currentQIdx+1)+'/'+total;
+  document.getElementById('q-progress-bar').style.width=((currentQIdx+1)/total*100)+'%';
+
+  const img=document.getElementById('q-img');
+  const cityImg=cityImages[currentCity.id];
+  if(cityImg){img.src=cityImg; img.style.display='block';}
+  else img.style.display='none';
+
+  document.getElementById('q-context').textContent=q.baglamMetni;
+  document.getElementById('q-meta').innerHTML=
+    `<span class="q-meta-tag qt-sinif">${q.sinif}. Sınıf</span>`+
+    `<span class="q-meta-tag qt-konu">${q.konu}</span>`+
+    `<span class="q-meta-tag qt-bloom">${q.bloom}</span>`+
+    `<span class="q-meta-tag qt-mab">${q.mab}</span>`;
+  document.getElementById('q-text').textContent=q.soru;
+
+  const opts=document.getElementById('q-opts'); opts.innerHTML='';
+  ['A','B','C','D'].forEach((l,i)=>{
+    const b=document.createElement('button');
+    b.className='q-opt';
+    b.innerHTML=`<span class="opt-letter">${l}</span>${q.secenekler[i]}`;
+    b.onclick=()=>selectAnswer(i,b);
+    opts.appendChild(b);
+  });
+
+  const fb=document.getElementById('q-feedback');
+  fb.style.display='none'; fb.className='';
+  document.getElementById('q-next').style.display='none';
+  document.getElementById('q-hint').style.display='block';
+  document.getElementById('q-hint').textContent='💡 İpucu';
+  document.getElementById('q-hint').style.color='#6ab4ff';
+}
+
+function selectAnswer(idx,btn){
+  if(answered)return;
+  answered=true;
+  const q=currentCity.sorular[currentQIdx];
+  document.querySelectorAll('.q-opt').forEach(o=>o.classList.add('disabled'));
+  const fb=document.getElementById('q-feedback');
+  fb.style.display='block';
+  if(idx===q.dogru){
+    btn.classList.add('correct');
+    correctCount++;
+    const pts=hintUsed?5:10; totalPts+=pts;
+    document.querySelectorAll('[id^="pts"]').forEach(el=>el.textContent='★ '+totalPts+' puan');
+    fb.className='correct';
+    document.getElementById('fb-icon').textContent='🎉';
+    document.getElementById('fb-msg').textContent=q.dogru_mesaj;
+    document.getElementById('fb-exp').textContent='✓ '+q.aciklama_not+(hintUsed?' (+5 puan)':' (+10 puan)');
+  } else {
+    btn.classList.add('wrong');
+    document.querySelectorAll('.q-opt')[q.dogru].classList.add('correct');
+    fb.className='wrong';
+    document.getElementById('fb-icon').textContent='💡';
+    document.getElementById('fb-msg').textContent='Doğru cevap: '+['A','B','C','D'][q.dogru];
+    document.getElementById('fb-exp').textContent=q.aciklama_not;
+  }
+  document.getElementById('q-next').style.display='block';
+  document.getElementById('q-hint').style.display='none';
+}
+
+function showHint(){
+  if(answered)return;
+  hintUsed=true;
+  const q=currentCity.sorular[currentQIdx];
+  const fb=document.getElementById('q-feedback');
+  fb.style.display='block'; fb.className='';
+  fb.style.cssText='display:block;background:#0a1e3a;border:1px solid #2a5a9a;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center;';
+  document.getElementById('fb-icon').textContent='💡';
+  document.getElementById('fb-msg').textContent='İpucu';
+  document.getElementById('fb-exp').textContent=q.aciklama_not.split('|')[0];
+  document.getElementById('q-hint').textContent='💡 İpucu kullanıldı (−5 puan)';
+  document.getElementById('q-hint').style.color='#FAC775';
+}
+
+function nextQ(){
+  currentQIdx++;
+  if(currentQIdx<currentCity.sorular.length) loadQuestion();
+  else showResult();
+}
+
+// ── SONUÇ ─────────────────────────────────────────────
+function showResult(){
+  const total=currentCity.sorular.length;
+  const pct=correctCount/total;
+  const sec=Math.round((Date.now()-startTime)/1000);
+  const min=Math.floor(sec/60), sn=sec%60;
+  let icon,title,sub;
+  if(pct>=0.8){icon='🏆';title='Muhteşem!';sub=currentCity.name+'\'ın matematiğini fethettın!';}
+  else if(pct>=0.5){icon='⭐';title='Harika!';sub='Güçlü bir performans — tekrar dene ve ustalaş!';}
+  else{icon='💪';title='Devam Et!';sub='Her soru bir öğrenme fırsatı — tekrar dene!';}
+  document.getElementById('res-icon').textContent=icon;
+  document.getElementById('result-title').textContent=title;
+  document.getElementById('result-sub').textContent=sub;
+  document.getElementById('res-dogru').textContent=correctCount+'/'+total;
+  document.getElementById('res-puan').textContent='+'+Math.round(pct*total*10);
+  document.getElementById('res-sure').textContent=min>0?min+'dk '+sn+'sn':sn+'sn';
+  document.getElementById('res-deger').textContent=currentCity.deger+' · '+currentCity.tur;
+  goScreen('s-result');
+}
+function replayCity(){currentQIdx=0;correctCount=0;startTime=Date.now();loadQuestion();goScreen('s-question');}
+
+// ── MODAL KAPAT ───────────────────────────────────────
+document.getElementById('modal-bg').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── BAŞLAT ────────────────────────────────────────────
+loadCityImages();
+buildCities(CITIES_DATA);
+</script>
+</body>
+</html>
